@@ -28,7 +28,7 @@ dirpath = os.path.dirname(os.path.realpath(__file__))
 def mock_ip_ifaddresses(arg):
     if "eth0" == arg:
         return {"mac": "78:ac:c0:c1:a8:fe",
-                "link": 1,
+                "link": True,
                 "inet": [{
                     "broadcast": "192.168.31.255",
                     "ip": "192.168.31.36",
@@ -36,7 +36,7 @@ def mock_ip_ifaddresses(arg):
                     "subnet": "192.168.31.0"}]}
     elif "eth1" == arg:
         return {"mac": "78:ac:c0:c1:a8:ff",
-                "link": 0,
+                "link": False,
                 "inet": [{
                     "broadcast": "192.168.31.255",
                     "ip": "192.168.31.37",
@@ -146,7 +146,7 @@ class TestEthernetClass(unittest.TestCase):
         # TODO: how to determine if setting success
         data = {
             "id": 1,
-            "enable": 0
+            "enable": False
         }
         self.bundle.apply(data)
 
@@ -159,8 +159,8 @@ class TestEthernetClass(unittest.TestCase):
         # TODO: how to determine if setting success
         data = {
             "id": 1,
-            "enable": 1,
-            "enableDhcp": 0,
+            "enable": True,
+            "enableDhcp": False,
             "ip": "192.168.31.39",
             "netmask": "255.255.255.0",
             "gateway": "192.168.31.254"
@@ -176,8 +176,8 @@ class TestEthernetClass(unittest.TestCase):
         # TODO: how to determine if setting success
         data = {
             "id": 1,
-            "enable": 1,
-            "enableDhcp": 1
+            "enable": True,
+            "enableDhcp": True
         }
         self.bundle.apply(data)
 
@@ -189,7 +189,7 @@ class TestEthernetClass(unittest.TestCase):
         """
         data = {
             "id": 0,
-            "enable": 1
+            "enable": True
         }
         with self.assertRaises(ValueError):
             mock_ifupdown.side_effect = ValueError
@@ -204,7 +204,7 @@ class TestEthernetClass(unittest.TestCase):
         mock_ifaddresses.side_effect = mock_ip_ifaddresses
 
         data = self.bundle.read(1)
-        self.assertEqual(1, data["currentStatus"])
+        self.assertEqual(True, data["status"])
         self.assertEqual("78:ac:c0:c1:a8:fe", data["mac"])
 
     @patch("ethernet.ip.ifaddresses")
@@ -244,10 +244,10 @@ class TestEthernetClass(unittest.TestCase):
         # case: by id
         def resp(code=200, data=None):
             self.assertEqual(200, code)
-            self.assertEqual(2, data["id"])
-            self.assertEqual(0, data["currentStatus"])
-            self.assertEqual("78:ac:c0:c1:a8:ff", data["mac"])
-        message.query["id"] = 2
+            self.assertEqual(2, data[0]["id"])
+            self.assertEqual(False, data[0]["status"])
+            self.assertEqual("78:ac:c0:c1:a8:ff", data[0]["mac"])
+        message.query["id"] = "2"
         self.bundle.get(message=message, response=resp, test=True)
 
     @patch("ethernet.ip.ifaddresses")
@@ -262,7 +262,7 @@ class TestEthernetClass(unittest.TestCase):
         def resp(code=200, data=None):
             self.assertEqual(200, code)
             self.assertEqual(1, data["id"])
-            self.assertEqual(1, data["currentStatus"])
+            self.assertEqual(True, data["status"])
             self.assertEqual("78:ac:c0:c1:a8:fe", data["mac"])
         message.param["id"] = 1
         self.bundle.get_by_id(message=message, response=resp, test=True)
@@ -335,7 +335,7 @@ class TestEthernetClass(unittest.TestCase):
         message = Message({"data": [], "query": {}, "param": {}})
         self.bundle.put(message, response=resp, test=True)
 
-        message.data.append({"id": 0, "enable": 1})
+        message.data.append({"id": 0, "enable": True})
         self.bundle.put(message, response=resp, test=True)
 
     # @patch("ethernet.time.sleep")
@@ -368,8 +368,12 @@ class TestEthernetClass(unittest.TestCase):
         # always true for response reply before apply the settings
         def resp(code=200, data=None):
             self.assertEqual(200, code)
-        message.data.append({"id": 1, "enable": 1, "ip": u"192.168.31.36"})
-        message.data.append({"id": 3, "enable": 1})
+        message.data.append(
+            {"id": 1,
+             "enable": True,
+             "enableDhcp": False,
+             "ip": u"192.168.31.36"})
+        message.data.append({"id": 3, "enable": True, "enableDhcp": False})
         self.bundle.put(message, response=resp, test=True)
         data = self.bundle.read(1, config=True)
         self.assertEqual("192.168.31.36", data["ip"])
@@ -396,8 +400,8 @@ class TestEthernetClass(unittest.TestCase):
 
         def resp(code=200, data=None):
             self.assertEqual(400, code)
-        message.data.append({"id": 0, "enable": 1})
-        message.data.append({"id": 3, "enable": 1})
+        message.data.append({"id": 0, "enable": True})
+        message.data.append({"id": 3, "enable": True})
         self.bundle.put(message, response=resp, test=True)
 
     # @patch("ethernet.time.sleep")
@@ -427,8 +431,16 @@ class TestEthernetClass(unittest.TestCase):
         def resp(code=200, data=None):
             self.assertEqual(200, code)
             self.assertEqual(2, len(data))
-        message.data.append({"id": 1, "enable": 1, "ip": u"192.168.31.37"})
-        message.data.append({"id": 2, "enable": 1, "ip": u"192.168.41.37"})
+        message.data.append(
+            {"id": 1,
+             "enable": True,
+             "enableDhcp": False,
+             "ip": u"192.168.31.37"})
+        message.data.append(
+            {"id": 2,
+             "enable": True,
+             "enableDhcp": False,
+             "ip": u"192.168.41.37"})
 
         def mock_event_put(resource, data):
             pass
@@ -466,12 +478,13 @@ class TestEthernetClass(unittest.TestCase):
 
         def resp(code=200, data=None):
             self.assertEqual(200, code)
-            self.assertEqual(1, data["enable"])
+            self.assertEqual(True, data["enable"])
             self.assertEqual("192.168.31.39", data["ip"])
         message = Message({"data": {}, "query": {}, "param": {}})
         message.param["id"] = 1
         message.data["id"] = 1
-        message.data["enable"] = 1
+        message.data["enable"] = True
+        message.data["enableDhcp"] = False
         message.data["ip"] = u"192.168.31.39"
 
         def mock_event_put(resource, data):
@@ -492,7 +505,7 @@ class TestEthernetClass(unittest.TestCase):
             ...
         }
         """
-        message = Message({"query": {}, "param": {}})
+        message = Message({"query": {}, "param": {"id": 1}})
 
         # no data attribute, other case already tested in "test_put()"
         def resp(code=200, data=None):
@@ -512,7 +525,7 @@ class TestEthernetClass(unittest.TestCase):
             ...
         }
         """
-        message = Message({"data": {}, "query": {}, "param": {}})
+        message = Message({"data": {}, "query": {}, "param": {"id": 3}})
 
         def mock_put(resource, data):
             pass
@@ -521,7 +534,8 @@ class TestEthernetClass(unittest.TestCase):
         def resp(code=200, data=None):
             self.assertEqual(404, code)
         message.data["id"] = 3
-        message.data["enable"] = 0
+        message.data["enable"] = False
+        message.data["enableDhcp"] = False
         message.data["ip"] = u"192.168.31.37"
         self.bundle.put_by_id(message, response=resp, test=True)
 
@@ -537,7 +551,7 @@ class TestEthernetClass(unittest.TestCase):
             ...
         }
         """
-        message = Message({"data": {}, "query": {}, "param": {}})
+        message = Message({"data": {}, "query": {}, "param": {"id": 1}})
 
         def mock_put(resource, data):
             pass
@@ -546,15 +560,16 @@ class TestEthernetClass(unittest.TestCase):
         def resp(code=200, data=None):
             self.assertEqual(404, code)
         message.data["id"] = 1
-        message.data["enable"] = 0
+        message.data["enable"] = False
+        message.data["enableDhcp"] = False
         message.data["ip"] = u"192.168.31.40"
         self.bundle.put_by_id(message, response=resp, test=True)
         data = self.bundle.read(1, config=True)
         self.assertEqual("192.168.31.40", data["ip"])
 
-    def test__put_dhcp_info__invalid_json(self):
+    def test__event_dhcp_info__invalid_json(self):
         """
-        put_dhcp_info (/network/interface/dhcp): invalid json schema
+        event_dhcp_info (/network/interfaces/:iface): invalid json schema
         "data": {
             "name": "",
             "ip": "",
@@ -564,14 +579,14 @@ class TestEthernetClass(unittest.TestCase):
             "gateway": ""
         }
         """
-        message = Message({"query": {}, "param": {}})
+        message = Message({"query": {}, "param": {"iface": "eth1"}})
 
         with self.assertRaises(ValueError):
-            self.bundle.put_dhcp_info(message, test=True)
+            self.bundle.event_dhcp_info(message, test=True)
 
-    def test__put_dhcp_info__unknown_iface(self):
+    def test__event_dhcp_info__unknown_iface(self):
         """
-        put_dhcp_info (/network/interface/dhcp): unknown interface
+        event_dhcp_info (/network/interfaces/:iface): unknown interface
         "data": {
             "name": "",
             "ip": "",
@@ -581,19 +596,21 @@ class TestEthernetClass(unittest.TestCase):
             "gateway": ""
         }
         """
-        message = Message({"data": {}, "query": {}, "param": {}})
+        message = Message(
+            {"data": {}, "query": {}, "param": {"iface": "eth2"}})
         message.data["name"] = "eth2"
+        message.data["type"] = "eth"
         message.data["ip"] = "192.168.41.3"
         message.data["netmask"] = "255.255.255.0"
         message.data["gateway"] = "192.168.41.254"
         message.data["dns"] = ["8.8.8.8"]
         with self.assertRaises(ValueError):
-            self.bundle.put_dhcp_info(message, test=True)
+            self.bundle.event_dhcp_info(message, test=True)
 
     @patch("ethernet.ip.ifaddresses")
-    def test__put_dhcp_info(self, mock_ifaddresses):
+    def test__event_dhcp_info(self, mock_ifaddresses):
         """
-        put_dhcp_info (/network/interface/dhcp)
+        event_dhcp_info (/network/interfaces/:iface)
         "data": {
             "name": "",
             "ip": "",
@@ -603,13 +620,15 @@ class TestEthernetClass(unittest.TestCase):
             "gateway": ""
         }
         """
-        message = Message({"data": {}, "query": {}, "param": {}})
+        message = Message(
+            {"data": {}, "query": {}, "param": {"iface": "eth1"}})
         message.data["name"] = "eth1"
+        message.data["type"] = "eth"
         message.data["ip"] = "192.168.41.3"
         message.data["netmask"] = "255.255.255.0"
         message.data["gateway"] = "192.168.41.254"
         message.data["dns"] = ["8.8.8.8"]
-        self.bundle.put_dhcp_info(message, test=True)
+        self.bundle.event_dhcp_info(message, test=True)
 
         data = self.bundle.read(2, config=True)
         self.assertEqual("192.168.41.3", data["ip"])
