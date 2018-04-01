@@ -1,3 +1,9 @@
+sanji-bundle-ethernet (1.1.6) unstable; urgency=low
+
+  * fix: add isc-dhcp-client deps
+
+ -- JustinCP Tung <justincp.tung@moxa.com>  Sun, 01 Apr 2018 20:14:45 +0800
+
 sanji-bundle-ethernet (1.1.5) unstable; urgency=low
 
   * fix: Push event only in static mode.
