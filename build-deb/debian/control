@@ -13,6 +13,7 @@ X-Python-Version: >= 2.5
 Package: sanji-bundle-ethernet
 Section: libs
 Architecture: all
-Depends: ${shlibs:Depends}, ${misc:Depends}, python2.7, python-pip, python-dev, ipcalc, ifplugd
+Depends: ${shlibs:Depends}, ${misc:Depends}, python2.7, python-pip, python-dev, ipcalc, ifplugd,
+    isc-dhcp-client (<= 4.3.1-6+deb8u3)
 Description: A sanji library for configure the Ethernet interfaces.
 
